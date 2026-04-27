@@ -51,75 +51,29 @@ def fast_hist(
     prediction: NDArrayU8,
     size: int,
 ) -> NDArrayI64:
-    """Compute the histogram."""
-    prediction = prediction.copy()
-    # Out-of-range values as `ignored`
-    prediction[prediction >= size] = size - 1
-
-    k = np.logical_and(
-        # `ignored` is not considered
-        np.greater_equal(groundtruth, 0),
-        np.less(groundtruth, size - 1),
-    )
-    return np.bincount(
-        size * groundtruth[k].astype(int) + prediction[k], minlength=size**2
-    ).reshape(size, size)
+    pass
 
 
 def per_class_iou(hist: NDArrayI32) -> NDArrayF64:
-    """Calculate per class iou."""
-    ious: NDArrayF64 = np.diag(hist) / (
-        hist.sum(1) + hist.sum(0) - np.diag(hist)
-    )
-    ious[np.isnan(ious)] = 0
-    # Last class as `ignored`
-    return ious[:-1]
+    pass
 
 
 def per_class_acc(hist: NDArrayI32) -> NDArrayF64:
-    """Calculate per class accuracy."""
-    accs: NDArrayF64 = np.diag(hist) / hist.sum(axis=0)
-    accs[np.isnan(accs)] = 0
-    # Last class as `ignored`
-    return accs[:-1]
+    pass
 
 
 def whole_acc(hist: NDArrayI32) -> float:
-    """Calculate whole accuray."""
-    hist = hist[:-1]
-    return cast(float, np.diag(hist).sum() / hist.sum())
+    pass
 
 
 def freq_iou(hist: NDArrayI32) -> float:
-    """Calculate frequency iou."""
-    ious = per_class_iou(hist)
-    hist = hist[:-1]
-    freq = hist.sum(axis=1) / hist.sum()
-    return cast(float, (ious * freq).sum())
+    pass
 
 
 def per_image_hist(
     gt_path: str, pred_path: str = "", num_classes: int = 2
 ) -> Tuple[NDArrayI64, Set[int]]:
-    """Calculate per image hist."""
-    assert num_classes >= 2
-    assert num_classes <= IGNORE_LABEL
-    gt: NDArrayU8 = np.asarray(Image.open(gt_path), dtype=np.uint8)
-    gt = gt.copy()
-    gt[gt == IGNORE_LABEL] = num_classes - 1
-    gt_id_set = set(np.unique(gt).tolist())
-
-    # remove `ignored`
-    if num_classes - 1 in gt_id_set:
-        gt_id_set.remove(num_classes - 1)
-
-    if not pred_path:
-        # Blank input feed as `ignored`
-        pred = np.multiply(np.ones_like(gt, dtype=np.uint8), num_classes - 1)
-    else:
-        pred = np.asarray(Image.open(pred_path), dtype=np.uint8)
-    hist = fast_hist(gt.flatten(), pred.flatten(), num_classes)
-    return hist, gt_id_set
+    pass
 
 
 def evaluate_segmentation(
@@ -129,65 +83,7 @@ def evaluate_segmentation(
     nproc: int = NPROC,
     with_logs: bool = True,
 ) -> SegResult:
-    """Evaluate segmentation IoU from input folders."""
-    assert mode in ["sem_seg", "drivable"]
-    if with_logs:
-        logger.info("Found %d results", len(gt_paths))
-    label_defs = {
-        "sem_seg": labels,
-        "drivable": drivables,
-    }[mode]
-    label_sort = sorted(label_defs, key=lambda label: int(label.trainId))
-    categories = [label.name for label in label_sort if label.trainId != 255]
-    num_classes = {
-        "sem_seg": len(categories) + 1,  # add an `ignored` class
-        "drivable": len(drivables),  # `background` as `ignored`
-    }[mode]
-
-    if with_logs:
-        logger.info("evaluating...")
-    pred_paths = reorder_preds(gt_paths, pred_paths)
-
-    if nproc > 1:
-        with Pool(nproc) as pool:
-            hist_and_gt_id_sets = pool.starmap(
-                partial(per_image_hist, num_classes=num_classes),
-                tqdm(zip(gt_paths, pred_paths), total=len(gt_paths)),
-            )
-    else:
-        hist_and_gt_id_sets = [
-            per_image_hist(gt_path, pred_path, num_classes=num_classes)
-            for gt_path, pred_path in tqdm(
-                zip(gt_paths, pred_paths), total=len(gt_paths)
-            )
-        ]
-
-    if with_logs:
-        logger.info("accumulating...")
-    hist: NDArrayI32 = np.zeros((num_classes, num_classes), dtype=np.int32)
-    gt_id_set = set()
-    for hist_, gt_id_set_ in hist_and_gt_id_sets:
-        hist += hist_
-        gt_id_set.update(gt_id_set_)
-
-    ious = per_class_iou(hist)
-    accs = per_class_acc(hist)
-    IoUs = [  # pylint: disable=invalid-name
-        {cat_name: 100 * score for cat_name, score in zip(categories, ious)},
-        {AVERAGE: np.multiply(np.mean(ious[list(gt_id_set)]), 100)},
-    ]
-    Accs = [  # pylint: disable=invalid-name
-        {cat_name: 100 * score for cat_name, score in zip(categories, accs)},
-        {AVERAGE: np.multiply(np.mean(accs[list(gt_id_set)]), 100)},
-    ]
-
-    logger.info("GT id set [%s]", ",".join(str(s) for s in gt_id_set))
-    return SegResult(
-        IoU=IoUs,
-        Acc=Accs,
-        fIoU=np.multiply(freq_iou(hist), 100),
-        pAcc=np.multiply(whole_acc(hist), 100),
-    )
+    pass
 
 
 def evaluate_drivable(
@@ -196,10 +92,7 @@ def evaluate_drivable(
     nproc: int = NPROC,
     with_logs: bool = True,
 ) -> SegResult:
-    """Evaluate drivable area."""
-    return evaluate_segmentation(
-        gt_paths, pred_paths, mode="drivable", nproc=nproc, with_logs=with_logs
-    )
+    pass
 
 
 def evaluate_sem_seg(
@@ -208,7 +101,4 @@ def evaluate_sem_seg(
     nproc: int = NPROC,
     with_logs: bool = True,
 ) -> SegResult:
-    """Evaluate semantic segmentation."""
-    return evaluate_segmentation(
-        gt_paths, pred_paths, mode="sem_seg", nproc=nproc, with_logs=with_logs
-    )
+    pass

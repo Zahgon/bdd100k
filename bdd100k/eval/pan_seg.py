@@ -121,67 +121,11 @@ class PQStat:
     def pq_average(
         self, categories: List[PanopticCatType]
     ) -> Dict[str, float]:
-        """Calculate averatge metrics over categories."""
-        pq, sq, rq, n = 0.0, 0.0, 0.0, 0
-        for category in categories:
-            category_id = category["id"]
-            iou = self.pq_per_cats[category_id].iou
-            tp = self.pq_per_cats[category_id].tp
-            fp = self.pq_per_cats[category_id].fp
-            fn = self.pq_per_cats[category_id].fn
-
-            if tp + fp + fn == 0:
-                continue
-            pq += (iou / (tp + 0.5 * fp + 0.5 * fn)) * 100
-            sq += (iou / tp if tp != 0 else 0) * 100
-            rq += (tp / (tp + 0.5 * fp + 0.5 * fn)) * 100
-            n += 1
-
-        if n > 0:
-            return {"PQ": pq / n, "SQ": sq / n, "RQ": rq / n, "N": n}
-        return {"PQ": 0, "SQ": 0, "RQ": 0, "N": 0}
+        pass
 
 
 def pq_per_image(gt_path: str, pred_path: str = "") -> PQStat:
-    """Calculate PQStar for each image."""
-    gt_bitmask: NDArrayU8 = np.asarray(Image.open(gt_path), dtype=np.uint8)
-    if not pred_path:
-        pred_bitmask = gen_blank_bitmask(gt_bitmask.shape)
-    else:
-        pred_bitmask = np.asarray(Image.open(pred_path), dtype=np.uint8)
-
-    gt_masks, gt_ids, gt_attrs, gt_cats = parse_bitmask(gt_bitmask)
-    pred_masks, pred_ids, pred_attrs, pred_cats = parse_bitmask(pred_bitmask)
-
-    gt_valids = np.logical_not(np.bitwise_and(gt_attrs, 3).astype(bool))
-    pred_valids = np.logical_not(np.bitwise_and(pred_attrs, 3).astype(bool))
-
-    ious, iofs = bitmask_intersection_rate(gt_masks, pred_masks)
-    cat_equals = gt_cats.reshape(-1, 1) == pred_cats.reshape(1, -1)
-    ious *= cat_equals
-
-    max_ious = ious.max(axis=1)
-    max_idxs = ious.argmax(axis=1)
-    inv_iofs = 1 - iofs[gt_valids].sum(axis=0)
-
-    pq_stat = PQStat()
-    pred_matched = set()
-    for i in range(len(gt_ids)):
-        if not gt_valids[i]:
-            continue
-        cat_i = gt_cats[i]
-        if max_ious[i] <= 0.5 or not pred_valids[max_idxs[i]]:
-            pq_stat[cat_i].fn += 1
-        else:
-            pq_stat[cat_i].tp += 1
-            pq_stat[cat_i].iou += max_ious[i]
-            pred_matched.add(max_idxs[i])
-
-    for j in range(len(pred_ids)):
-        if not pred_valids[j] or j in pred_matched or inv_iofs[j] > 0.5:
-            continue
-        pq_stat[pred_cats[j]].fp += 1
-    return pq_stat
+    pass
 
 
 def evaluate_pan_seg(
@@ -190,69 +134,4 @@ def evaluate_pan_seg(
     nproc: int = NPROC,
     with_logs: bool = True,
 ) -> PanSegResult:
-    """Evaluate panoptic segmentation with BDD100K format."""
-    start_time = time.time()
-    if with_logs:
-        logger.info("evaluating...")
-    pred_paths = reorder_preds(gt_paths, pred_paths)
-    if nproc > 1:
-        with Pool(nproc) as pool:
-            pq_stats = pool.starmap(
-                pq_per_image,
-                tqdm(zip(gt_paths, pred_paths), total=len(gt_paths)),
-            )
-    else:
-        pq_stats = [
-            pq_per_image(gt_path, pred_path)
-            for gt_path, pred_path in tqdm(
-                zip(gt_paths, pred_paths), total=len(gt_paths)
-            )
-        ]
-    pq_stat = PQStat()
-    for pq_stat_ in pq_stats:
-        pq_stat += pq_stat_
-
-    if with_logs:
-        logger.info("accumulating...")
-    categories: List[PanopticCatType] = [
-        PanopticCatType(
-            id=label.id,
-            name=label.name,
-            supercategory=label.category,
-            isthing=label.hasInstances,
-            color=label.color,
-        )
-        for label in labels
-    ]
-    categories = categories[1:]
-    categories_stuff = [
-        category for category in categories if not category["isthing"]
-    ]
-    categories_thing = [
-        category for category in categories if category["isthing"]
-    ]
-    basic_category_names = [category["name"] for category in categories]
-
-    res_dict: Dict[str, ScoresList] = {}
-    for category_name, category in zip(basic_category_names, categories):
-        result = pq_stat.pq_average([category])
-        for metric, score in result.items():
-            if metric not in res_dict:
-                res_dict[metric] = [{}, {}, {}]
-            res_dict[metric][0][category_name] = score
-
-    result = pq_stat.pq_average(categories_stuff)
-    for metric, score in result.items():
-        res_dict[metric][1][STUFF] = score
-    result = pq_stat.pq_average(categories_thing)
-    for metric, score in result.items():
-        res_dict[metric][1][THING] = score
-    result = pq_stat.pq_average(categories)
-    for metric, score in result.items():
-        res_dict[metric][2][OVERALL] = score
-
-    t_delta = time.time() - start_time
-    if with_logs:
-        logger.info("Time elapsed: %0.2f seconds", t_delta)
-
-    return PanSegResult(**res_dict)  # type: ignore
+    pass

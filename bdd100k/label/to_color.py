@@ -18,35 +18,7 @@ from .palette import get_palette
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse arguments."""
-    parser = argparse.ArgumentParser(description="masks/bitmasks to colormaps")
-    parser.add_argument(
-        "-i", "--input", help="path to the directory of masks/bitmasks."
-    )
-    parser.add_argument(
-        "-o", "--output", help="path to save generated colormaps."
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        default="det",
-        choices=[
-            "sem_seg",
-            "drivable",
-            "lane_mark",
-            "ins_seg",
-            "pan_seg",
-            "seg_track",
-        ],
-        help="conversion mode.",
-    )
-    parser.add_argument(
-        "--nproc",
-        type=int,
-        default=NPROC,
-        help="number of processes for conversion.",
-    )
-    return parser.parse_args()
+    pass
 
 
 def mask_to_color(bitmask_file: str, colormap_file: str, mode: str) -> None:
@@ -85,14 +57,7 @@ def video_dataset_to_colormap(
 
 
 def main() -> None:
-    """Main function."""
-    args = parse_args()
-    colormap_func = (
-        video_dataset_to_colormap
-        if args.mode == "seg_track"
-        else image_dataset_to_colormap
-    )
-    colormap_func(args.input, args.output, args.mode, args.nproc)
+    pass
 
 
 if __name__ == "__main__":

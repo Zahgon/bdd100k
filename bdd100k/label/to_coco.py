@@ -43,101 +43,11 @@ from .to_scalabel import bdd100k_to_scalabel
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse arguments."""
-    parser = argparse.ArgumentParser(description="bdd100k to coco format")
-    parser.add_argument(
-        "-i", "--input", required=True, help="path to Scalabel label file"
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        required=True,
-        help="path to save coco formatted label file",
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        default="det",
-        choices=[
-            "det",
-            "ins_seg",
-            "box_track",
-            "seg_track",
-            "pose",
-        ],
-        help="conversion mode",
-    )
-    parser.add_argument(
-        "--nproc",
-        type=int,
-        default=NPROC,
-        help="number of processes for conversion",
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=None,
-        help="Configuration for COCO categories",
-    )
-    parser.add_argument(
-        "-mb",
-        "--mask-base",
-        type=str,
-        default=None,
-        help="Path to the BitMasks base folder.",
-    )
-    parser.add_argument(
-        "-om",
-        "--only-mask",
-        action="store_true",
-        help="Convert only masks.",
-    )
-    return parser.parse_args()
+    pass
 
 
 def bitmasks_loader(mask_name: str) -> Tuple[List[InstanceType], ImageSize]:
-    """Parse instances from the bitmask."""
-    if mask_name.endswith(".jpg"):
-        mask_name = mask_name.replace(".jpg", ".png")
-    bitmask: NDArrayI32 = np.asarray(Image.open(mask_name), dtype=np.int32)
-    category_map = bitmask[:, :, 0]
-    attributes_map = bitmask[:, :, 1]
-    instance_map = (bitmask[:, :, 2] << 8) + bitmask[:, :, 3]
-    indentity_map = (
-        (category_map << 24) + (attributes_map << 16) + instance_map
-    )
-
-    instances: List[InstanceType] = []
-
-    identities: NDArrayI32 = np.unique(indentity_map)
-    for identity in identities:
-        mask = np.equal(indentity_map, identity)
-        category_id = (identity >> 24) & 255
-        attribute = (identity >> 16) & 255
-        instance_id = identity & 65535
-        if category_id == 0:
-            continue
-
-        bbox = mask_to_bbox(mask)
-        area = np.sum(mask).tolist()
-
-        instance = InstanceType(
-            instance_id=int(instance_id),
-            category_id=int(category_id),
-            truncated=bool(attribute & (1 << 3)),
-            occluded=bool(attribute & (1 << 2)),
-            crowd=bool(attribute & (1 << 1)),
-            ignored=bool(attribute & (1 << 0)),
-            mask=mask,
-            bbox=bbox,
-            area=area,
-        )
-        instances.append(instance)
-
-    instances = sorted(instances, key=lambda instance: instance["instance_id"])
-    img_shape = ImageSize(height=bitmask.shape[0], width=bitmask.shape[1])
-
-    return (instances, img_shape)
+    pass
 
 
 def bitmask2coco_wo_ids(image: ImgType, mask_base: str) -> List[AnnType]:
@@ -148,23 +58,7 @@ def bitmask2coco_wo_ids(image: ImgType, mask_base: str) -> List[AnnType]:
 def bitmask2coco_wo_ids_parallel(
     mask_base: str, images: List[ImgType], nproc: int = NPROC
 ) -> List[AnnType]:
-    """Execute the bitmask conversion in parallel."""
-    logger.info("Converting annotations...")
-
-    with Pool(nproc) as pool:
-        annotations_list = pool.map(
-            partial(bitmask2coco_wo_ids, mask_base=mask_base),
-            tqdm(images),
-        )
-    annotations: List[AnnType] = []
-    for anns in annotations_list:
-        annotations.extend(anns)
-
-    annotations = sorted(annotations, key=lambda ann: ann["image_id"])
-    for i, annotation in enumerate(annotations):
-        ann_id = i + 1
-        annotation["id"] = ann_id
-    return annotations
+    pass
 
 
 def bitmask2coco_with_ids(
@@ -191,66 +85,13 @@ def bitmask2coco_with_ids_parallel(
 def bitmask2coco_ins_seg(
     mask_base: str, config: Config, nproc: int = NPROC
 ) -> GtType:
-    """Converting BDD100K Instance Segmentation Set to COCO format."""
-    files = list_files(mask_base, suffix=".png")
-    images: List[ImgType] = []
-
-    logger.info("Collecting bitmasks...")
-
-    image_id = 0
-    for file_ in tqdm(files):
-        image_id += 1
-        image = ImgType(
-            id=image_id,
-            file_name=file_.replace(".png", ".jpg"),
-        )
-        images.append(image)
-
-    annotations = bitmask2coco_wo_ids_parallel(mask_base, images, nproc)
-    return GtType(
-        type="instances",
-        categories=get_coco_categories(config),
-        images=images,
-        annotations=annotations,
-    )
+    pass
 
 
 def bitmask2coco_seg_track(
     mask_base: str, config: Config, nproc: int = NPROC
 ) -> GtType:
-    """Converting BDD100K Instance Segmentation Set to COCO format."""
-    videos: List[VidType] = []
-    images: List[ImgType] = []
-    all_files = list_files(mask_base, suffix=".png")
-    files_list = group_and_sort_files(all_files)
-
-    logger.info("Collecting bitmasks...")
-
-    video_id, image_id = 0, 0
-    for files in files_list:
-        video_name = os.path.split(files[0])[0]
-        video_id += 1
-        video = VidType(id=video_id, name=video_name, attributes=None)
-        videos.append(video)
-
-        for frame_id, file_ in tqdm(enumerate(files)):
-            image_id += 1
-            image = ImgType(
-                video_id=video_id,
-                frame_id=frame_id,
-                id=image_id,
-                file_name=file_.replace(".png", ".jpg"),
-            )
-            images.append(image)
-
-    annotations = bitmask2coco_wo_ids_parallel(mask_base, images, nproc)
-    return GtType(
-        type="instances",
-        categories=get_coco_categories(config),
-        videos=videos,
-        images=images,
-        annotations=annotations,
-    )
+    pass
 
 
 def bdd100k2coco_ins_seg(
@@ -268,65 +109,7 @@ def bdd100k2coco_seg_track(
 
 
 def main() -> None:
-    """Main function."""
-    args = parse_args()
-
-    if args.only_mask:
-        assert args.mode in ["ins_seg", "seg_track"]
-        convert_function = {
-            "ins_seg": bitmask2coco_ins_seg,
-            "seg_track": bitmask2coco_seg_track,
-        }[args.mode]
-
-        cfg_path = args.config if args.config is not None else args.mode
-        bdd100k_config = load_bdd100k_config(cfg_path)
-        logger.info("Start format converting...")
-        coco = convert_function(
-            args.input, bdd100k_config.scalabel, args.nproc
-        )
-    else:
-        logger.info("Loading annotations...")
-        dataset = load(args.input, args.nproc)
-        if args.config is not None:
-            bdd100k_config = load_bdd100k_config(args.config)
-        elif dataset.config is not None:
-            bdd100k_config = BDD100KConfig(scalabel=dataset.config)
-        else:
-            bdd100k_config = load_bdd100k_config(args.mode)
-
-        if args.mode in ["det", "box_track", "pose"]:
-            convert_func = {
-                "det": scalabel2coco_detection,
-                "box_track": scalabel2coco_box_track,
-                "pose": scalabel2coco_pose,
-            }[args.mode]
-        else:
-            if args.mask_base is not None:
-                convert_func = partial(
-                    {
-                        "ins_seg": bdd100k2coco_ins_seg,
-                        "seg_track": bdd100k2coco_seg_track,
-                    }[args.mode],
-                    mask_base=args.mask_base,
-                    nproc=args.nproc,
-                )
-            else:
-                convert_func = partial(
-                    {
-                        "ins_seg": scalabel2coco_ins_seg,
-                        "seg_track": scalabel2coco_seg_track,
-                    }[args.mode],
-                    nproc=args.nproc,
-                )
-
-        logger.info("Start format converting...")
-        frames = bdd100k_to_scalabel(dataset.frames, bdd100k_config)
-        coco = convert_func(frames=frames, config=bdd100k_config.scalabel)
-
-    logger.info("Saving converted annotations to disk...")
-    with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(coco, f)
-    logger.info("Finished!")
+    pass
 
 
 if __name__ == "__main__":
