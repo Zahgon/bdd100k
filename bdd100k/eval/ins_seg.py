@@ -33,33 +33,7 @@ def parse_res_bitmask(
     ann_score: List[Tuple[int, float]], bitmask: NDArrayU8
 ) -> List[NDArrayI32]:
     """Parse information from result bitmasks and compress its value range."""
-    bitmask = bitmask.astype(np.int32)
-    category_map = bitmask[:, :, 0]
-    ann_map = (bitmask[:, :, 2] << 8) + bitmask[:, :, 3]
-
-    ann_ids = []
-    scores = []
-    category_ids = []
-
-    masks: NDArrayI32 = np.zeros(bitmask.shape[:2], dtype=np.int32)
-    i = 0
-    ann_score = sorted(ann_score, key=lambda pair: pair[1], reverse=True)
-    for ann_id, score in ann_score:
-        mask_inds_i = ann_map == ann_id
-        if np.count_nonzero(mask_inds_i) == 0:
-            continue
-
-        # 0 is for the background
-        i += 1
-        masks[mask_inds_i] = i
-        ann_ids.append(i)
-        scores.append(score)
-
-        category_ids_i: NDArrayI32 = np.unique(category_map[mask_inds_i])
-        assert category_ids_i.shape[0] == 1
-        category_ids.append(category_ids_i[0])
-
-    return [masks, np.array(ann_ids), np.array(scores), np.array(category_ids)]
+    pass
 
 
 def get_mask_areas(masks: NDArrayI32) -> NDArrayF64:
@@ -101,26 +75,7 @@ class BDD100KInsSegEval(COCOevalV2):
 
     def evaluate(self) -> None:
         """Run per image evaluation."""
-        p = self.params
-        p.maxDets = sorted(p.maxDets)
-        self.params = p
-
-        # loop through images, area range, max detection number
-        if self.nproc > 1:
-            with Pool(self.nproc) as pool:
-                to_updates: List[Dict[int, DictStrAny]] = pool.map(
-                    self.compute_match, range(len(self))
-                )
-        else:
-            to_updates = list(map(self.compute_match, range(len(self))))
-
-        eval_num = len(p.catIds) * len(p.areaRng) * len(self)
-        self.evalImgs = [{} for _ in range(eval_num)]
-        for to_update in to_updates:
-            for ind, item in to_update.items():
-                self.evalImgs[ind].update(item)
-
-        self._paramsEval = copy.deepcopy(self.params)
+        pass
 
     def compute_iou(self, img_ind: int) -> DictStrAny:
         """Compute IoU per image."""
@@ -152,19 +107,4 @@ def evaluate_ins_seg(
     Returns:
         dict: detection metric scores
     """
-    categories = get_coco_categories(config)
-    cat_ids = [category["id"] for category in categories]
-    cat_names = [category["name"] for category in categories]
-    pred_paths = reorder_preds(gt_paths, pred_paths)
-    bdd_eval = BDD100KInsSegEval(
-        gt_paths, pred_paths, pred_score_file, cat_names, nproc
-    )
-    bdd_eval.params.catIds = cat_ids
-    if with_logs:
-        logger.info("evaluating...")
-    bdd_eval.evaluate()
-    if with_logs:
-        logger.info("accumulating...")
-    bdd_eval.accumulate()
-    result = bdd_eval.summarize()  # pylint: disable=redefined-outer-name
-    return result
+    pass
