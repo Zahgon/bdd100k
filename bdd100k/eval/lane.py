@@ -173,14 +173,7 @@ class LaneResult(Result):
         exclude: Optional[AbstractSet[str]] = None,
     ) -> Scores:
         """Convert the lane_mark data into a flattened dict as the summary."""
-        summary_dict: Dict[str, Union[int, float]] = {}
-        for metric, scores_list in self.dict(
-            include=include, exclude=exclude
-        ).items():
-            for category, score in scores_list[-2].items():
-                summary_dict[f"{metric}/{category}"] = score
-            summary_dict[metric] = scores_list[-1][AVERAGE]
-        return summary_dict
+        pass
 
 
 def eval_lane_per_frame(gt_path: str, pred_path: str) -> Dict[str, NDArrayF64]:

@@ -51,16 +51,7 @@ def parse_args() -> argparse.Namespace:
 
 def mask_to_color(bitmask_file: str, colormap_file: str, mode: str) -> None:
     """Convert mask/bitmask to colormap for one image."""
-    bitmask = Image.open(bitmask_file)
-    if mode in ["ins_seg", "pan_seg", "seg_track"]:
-        bitmask = bitmask.split()[3]
-    elif mode == "lane_mark":
-        array = np.asarray(bitmask, dtype=np.uint8)
-        # 15 = (1 << 4) - 1, only take the last 4 bits
-        bitmask = Image.fromarray(array & 15)
-    palette = get_palette(mode)
-    bitmask.putpalette(palette)
-    bitmask.save(colormap_file)
+    pass
 
 
 def masks_to_colors(
@@ -70,16 +61,7 @@ def masks_to_colors(
     nproc: int = NPROC,
 ) -> None:
     """Convert mask/bitmask to colormap for a list of images."""
-    logger.info("Converting annotations...")
-
-    with Pool(nproc) as pool:
-        pool.starmap(
-            partial(mask_to_color, mode=mode),
-            tqdm(
-                zip(bitmasks_files, colormap_files),
-                total=len(bitmasks_files),
-            ),
-        )
+    pass
 
 
 def image_dataset_to_colormap(
@@ -89,20 +71,7 @@ def image_dataset_to_colormap(
     nproc: int = NPROC,
 ) -> None:
     """Convert instance segmentation bitmasks to labelmap."""
-    if not os.path.isdir(out_base):
-        os.makedirs(out_base)
-    files = list_files(in_base, ".png")
-    bitmasks_files: List[str] = []
-    colormap_files: List[str] = []
-
-    logger.info("Preparing annotations for image dataset to Colormap")
-
-    for file_name in tqdm(files):
-        label_path = os.path.join(in_base, file_name)
-        color_path = os.path.join(out_base, file_name)
-        bitmasks_files.append(label_path)
-        colormap_files.append(color_path)
-    masks_to_colors(bitmasks_files, colormap_files, mode, nproc)
+    pass
 
 
 def video_dataset_to_colormap(
@@ -112,29 +81,7 @@ def video_dataset_to_colormap(
     nproc: int = NPROC,
 ) -> None:
     """Convert segmentation tracking bitmasks to labelmap."""
-    if not os.path.isdir(out_base):
-        os.makedirs(out_base)
-    files = list_files(in_base, ".png")
-    files_list = group_and_sort_files(files)
-
-    bitmasks_files: List[str] = []
-    colormap_files: List[str] = []
-
-    logger.info("Preparing annotations for video dataset to Colormap")
-
-    for files in tqdm(files_list):
-        assert len(files) > 0
-        video_name = os.path.split(files[0])[0]
-        video_path = os.path.join(out_base, video_name)
-        if not os.path.isdir(video_path):
-            os.makedirs(video_path)
-
-        for file_name in files:
-            label_path = os.path.join(in_base, file_name)
-            color_path = os.path.join(out_base, file_name)
-            bitmasks_files.append(label_path)
-            colormap_files.append(color_path)
-    masks_to_colors(bitmasks_files, colormap_files, mode, nproc)
+    pass
 
 
 def main() -> None:

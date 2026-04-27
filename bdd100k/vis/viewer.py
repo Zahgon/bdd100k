@@ -41,9 +41,7 @@ class LabelViewerBDD100K(LabelViewer):
 
     def _get_label_color(self, label: Label) -> NDArrayF64:
         """Get color by category and id."""
-        if label.category in self.colors:
-            return self.colors[label.category] / 255.0
-        return super()._get_label_color(label)
+        pass
 
 
 def parse_args() -> argparse.Namespace:

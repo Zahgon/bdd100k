@@ -142,23 +142,7 @@ def bitmasks_loader(mask_name: str) -> Tuple[List[InstanceType], ImageSize]:
 
 def bitmask2coco_wo_ids(image: ImgType, mask_base: str) -> List[AnnType]:
     """Convert bitmasks annotations of an image to RLEs or polygons."""
-    mask_name = os.path.join(mask_base, image["file_name"])
-    instances, img_shape = bitmasks_loader(mask_name)
-    image["height"] = img_shape.height
-    image["width"] = img_shape.width
-
-    annotations: List[AnnType] = []
-    for instance in instances:
-        annotation = AnnType(
-            id=0,  # set further
-            image_id=image["id"],
-            category_id=instance["category_id"],
-            instance_id=instance["instance_id"],
-            iscrowd=instance["crowd"],
-        )
-        annotation = set_seg_object_geometry(annotation, instance["mask"])
-        annotations.append(annotation)
-    return annotations
+    pass
 
 
 def bitmask2coco_wo_ids_parallel(
@@ -190,20 +174,7 @@ def bitmask2coco_with_ids(
     instance_ids: List[int],
 ) -> List[AnnType]:
     """Convert bitmasks annotations of an image to RLEs or polygons."""
-    bitmask: NDArrayI32 = np.asarray(Image.open(mask_name), dtype=np.int32)
-    category_map = bitmask[..., 0]
-    instance_map = (bitmask[..., 2] << 2) + bitmask[..., 3]
-    for annotation, category_id, instance_id in zip(
-        annotations, category_ids, instance_ids
-    ):
-        mask = np.logical_and(
-            category_map == category_id, instance_map == instance_id
-        )
-        annotation = set_seg_object_geometry(annotation, mask)
-    annotations = [
-        ann for ann in annotations if "bbox" in ann and "segmentation" in ann
-    ]
-    return annotations
+    pass
 
 
 def bitmask2coco_with_ids_parallel(
@@ -214,26 +185,7 @@ def bitmask2coco_with_ids_parallel(
     nproc: int = NPROC,
 ) -> List[AnnType]:
     """Execute the bitmask conversion in parallel."""
-    logger.info("Converting annotations...")
-
-    with Pool(nproc) as pool:
-        annotations_list = pool.starmap(
-            bitmask2coco_with_ids,
-            tqdm(
-                zip(
-                    annotations_list,
-                    mask_names,
-                    category_ids_list,
-                    instance_ids_list,
-                ),
-                total=len(annotations_list),
-            ),
-        )
-    annotations: List[AnnType] = []
-    for anns in annotations_list:
-        annotations.extend(anns)
-
-    return annotations
+    pass
 
 
 def bitmask2coco_ins_seg(
@@ -305,197 +257,14 @@ def bdd100k2coco_ins_seg(
     mask_base: str, frames: List[Frame], config: Config, nproc: int = NPROC
 ) -> GtType:
     """Converting BDD100K Instance Segmentation Set to COCO format."""
-    image_id, ann_id = 0, 0
-    img_shape = config.imageSize
-    images: List[ImgType] = []
-
-    mask_names: List[str] = []
-    category_ids_list: List[List[int]] = []
-    instance_ids_list: List[List[int]] = []
-    annotations_list: List[List[AnnType]] = []
-
-    categories = get_leaf_categories(config.categories)
-    cat_name2id = {cat.name: i + 1 for i, cat in enumerate(categories)}
-
-    logger.info("Collecting annotations...")
-
-    for image_anns in tqdm(frames):
-        image_id += 1
-        if img_shape is None:
-            if image_anns.size is not None:
-                img_shape = image_anns.size
-            else:
-                raise ValueError("Image shape not defined!")
-
-        image = ImgType(
-            id=image_id,
-            file_name=image_anns.name,
-            height=img_shape.height,
-            width=img_shape.width,
-        )
-        if image_anns.url is not None:
-            image["coco_url"] = image_anns.url
-        images.append(image)
-
-        mask_name = os.path.join(
-            mask_base,
-            # Bitmask in .png format, image in .jpg format
-            image_anns.name.replace(".jpg", ".png"),
-        )
-        mask_names.append(mask_name)
-
-        category_ids: List[int] = []
-        instance_ids: List[int] = []
-        annotations: List[AnnType] = []
-
-        instance_id = 0
-        for label in image_anns.labels:
-            if label.poly2d is None:
-                continue
-            if label.category not in cat_name2id:
-                continue
-
-            ann_id += 1
-            instance_id += 1
-            category_id = cat_name2id[label.category]
-            annotation = AnnType(
-                id=ann_id,
-                image_id=image_id,
-                category_id=category_id,
-                scalabel_id=label.id,
-                iscrowd=int(check_crowd(label) or check_ignored(label)),
-                ignore=0,
-            )
-
-            category_ids.append(category_id)
-            instance_ids.append(instance_id)
-            annotations.append(annotation)
-
-        category_ids_list.append(category_ids)
-        instance_ids_list.append(instance_ids)
-        annotations_list.append(annotations)
-
-    annotations = bitmask2coco_with_ids_parallel(
-        annotations_list,
-        mask_names,
-        category_ids_list,
-        instance_ids_list,
-        nproc,
-    )
-
-    return GtType(
-        type="instances",
-        categories=get_coco_categories(config),
-        images=images,
-        annotations=annotations,
-    )
+    pass
 
 
 def bdd100k2coco_seg_track(
     mask_base: str, frames: List[Frame], config: Config, nproc: int = NPROC
 ) -> GtType:
     """Converting BDD100K Segmentation Tracking Set to COCO format."""
-    video_id, image_id, ann_id = 0, 0, 0
-    img_shape = config.imageSize
-    frames_list = group_and_sort(frames)
-    videos: List[VidType] = []
-    images: List[ImgType] = []
-
-    mask_names: List[str] = []
-    category_ids_list: List[List[int]] = []
-    instance_ids_list: List[List[int]] = []
-    annotations_list: List[List[AnnType]] = []
-
-    categories = get_leaf_categories(config.categories)
-    cat_name2id = {cat.name: i + 1 for i, cat in enumerate(categories)}
-
-    logger.info("Collecting annotations...")
-
-    for video_anns in tqdm(frames_list):
-        global_instance_id: int = 1
-        instance_id_maps: Dict[str, int] = {}
-
-        video_name = video_anns[0].videoName
-        video_id += 1
-        video = VidType(id=video_id, name=video_name, attributes=None)
-        videos.append(video)
-
-        for image_anns in video_anns:
-            image_id += 1
-            if img_shape is None:
-                if image_anns.size is not None:
-                    img_shape = image_anns.size
-                else:
-                    raise ValueError("Image shape not defined!")
-
-            image = ImgType(
-                video_id=video_id,
-                frame_id=image_anns.frameIndex,
-                id=image_id,
-                file_name=os.path.join(video_name, image_anns.name),
-                height=img_shape.height,
-                width=img_shape.width,
-            )
-            if image_anns.url is not None:
-                image["coco_url"] = image_anns.url
-            images.append(image)
-
-            mask_name = os.path.join(
-                mask_base,
-                video_name,
-                # Bitmask in .png format, image in .jpg format
-                image_anns.name.replace(".jpg", ".png"),
-            )
-            mask_names.append(mask_name)
-
-            category_ids: List[int] = []
-            instance_ids: List[int] = []
-            annotations: List[AnnType] = []
-
-            for label in image_anns.labels:
-                if label.poly2d is None:
-                    continue
-                if label.category not in cat_name2id:
-                    continue
-
-                ann_id += 1
-                instance_id, global_instance_id = get_bdd100k_instance_id(
-                    instance_id_maps, global_instance_id, label.id
-                )
-                category_id = cat_name2id[label.category]
-                annotation = AnnType(
-                    id=ann_id,
-                    image_id=image_id,
-                    instance_id=instance_id,
-                    category_id=category_id,
-                    scalabel_id=label.id,
-                    iscrowd=int(check_crowd(label) or check_ignored(label)),
-                    ignore=0,
-                )
-
-                category_ids.append(category_id)
-                instance_ids.append(instance_id)
-                annotations.append(annotation)
-
-            category_ids_list.append(category_ids)
-            instance_ids_list.append(instance_ids)
-            annotations_list.append(annotations)
-
-    annotations = bitmask2coco_with_ids_parallel(
-        annotations_list,
-        mask_names,
-        category_ids_list,
-        instance_ids_list,
-        nproc,
-    )
-
-    return GtType(
-        type="instances",
-        categories=get_coco_categories(config),
-        videos=videos,
-        images=images,
-        annotations=annotations,
-    )
+    pass
 
 
 def main() -> None:

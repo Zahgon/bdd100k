@@ -43,20 +43,12 @@ def copy(src: str, target: str) -> None:
 
 def zipdir(src: str, target: str) -> None:
     """Zip the src folder."""
-    out_dir = dirname(target)
-    os.makedirs(out_dir, exist_ok=True)
-    cmd = ["zip", "-r", "-j", "-0", "-q", target + ".zip", src]
-    pipe = DEVNULL
-    check_call(cmd, stdout=pipe, stderr=pipe)
+    pass
 
 
 def unzip(src: str, target: str) -> None:
     """Unzip the src folder."""
-    out_dir = dirname(target)
-    os.makedirs(out_dir, exist_ok=True)
-    cmd = ["unzip", "-d", splitext(target)[0], src]
-    pipe = DEVNULL
-    check_call(cmd, stdout=pipe, stderr=pipe)
+    pass
 
 
 def create_subpath(filepath: str) -> str:

@@ -57,16 +57,12 @@ def get_bdd100k_instance_id(
 
 def check_bdd100k_crowd(label: Label) -> bool:
     """Check crowd attribute for BDD100K."""
-    if label.id == "-1":
-        return True
-    return check_crowd(label)
+    pass
 
 
 def check_bdd100k_ignored(label: Label) -> bool:
     """Check ignored attribute for BDD100K."""
-    if label.id == "-1":
-        return True
-    return check_ignored(label)
+    pass
 
 
 def load_bdd100k_config(cfg_path: str) -> BDD100KConfig:

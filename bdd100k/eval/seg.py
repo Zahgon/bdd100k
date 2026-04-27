@@ -43,15 +43,7 @@ class SegResult(Result):
         exclude: Optional[AbstractSet[str]] = None,
     ) -> Scores:
         """Convert the seg result into a flattened dict as the summary."""
-        summary_dict: Dict[str, Union[int, float]] = {}
-        for metric, scores_list in self.dict(
-            include=include, exclude=exclude
-        ).items():
-            if not isinstance(scores_list, list):
-                summary_dict[metric] = scores_list
-            else:
-                summary_dict["m" + metric] = scores_list[-1][AVERAGE]
-        return summary_dict
+        pass
 
 
 def fast_hist(

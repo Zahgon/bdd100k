@@ -45,64 +45,7 @@ def frame_to_mask(
     closed: bool = True,
 ) -> None:
     """Converting a frame of poly2ds to mask/bitmask."""
-    assert len(colors) == len(poly2ds)
-    height, width = shape.height, shape.width
-
-    assert back_color >= 0
-    if with_instances:
-        img: NDArrayU8 = (
-            np.ones([height, width, 4], dtype=np.uint8)
-            * back_color  # type: ignore
-        )
-    else:
-        img = (
-            np.ones([height, width, 1], dtype=np.uint8)
-            * back_color  # type: ignore
-        )
-
-    if len(colors) == 0:
-        pil_img = Image.fromarray(img.squeeze())
-        pil_img.save(out_path)
-
-    matplotlib.use("Agg")
-    fig = plt.figure(facecolor="0")
-    fig.set_size_inches((width / fig.get_dpi()), height / fig.get_dpi())
-    ax = fig.add_axes([0, 0, 1, 1])  # type: ignore
-    ax.axis("off")
-    ax.set_xlim(0, width)
-    ax.set_ylim(0, height)
-    ax.set_facecolor((0, 0, 0, 0))
-    ax.invert_yaxis()
-
-    for i, poly2d in enumerate(poly2ds):
-        for poly in poly2d:
-            ax.add_patch(
-                poly_to_patch(
-                    poly.vertices,
-                    poly.types,
-                    # (0, 0, 0) for the background
-                    color=(
-                        ((i + 1) >> 8) / 255.0,
-                        ((i + 1) % 255) / 255.0,
-                        0.0,
-                    ),
-                    closed=closed,
-                )
-            )
-
-    fig.canvas.draw()
-    out: NDArrayU8 = np.frombuffer(
-        fig.canvas.tostring_rgb(), np.uint8  # type: ignore
-    )
-    out = out.reshape((height, width, -1)).astype(np.int32)
-    out = (out[..., 0] << 8) + out[..., 1]
-    plt.close()
-
-    for i, color in enumerate(colors):
-        # 0 is for the background
-        img[out == i + 1] = color
-    pil_img = Image.fromarray(img.squeeze())
-    pil_img.save(out_path)
+    pass
 
 
 def set_instance_color(
@@ -131,18 +74,7 @@ def set_instance_color(
 
 def set_lane_color(label: Label, category_id: int) -> NDArrayU8:
     """Set the color for the lane given its attributes and category."""
-    attributes = label.attributes
-    if attributes is None:
-        lane_direction, lane_style = 0, 0
-    else:
-        lane_direction = LANE_DIRECTION_MAP[
-            str(attributes.get("laneDirection", "parallel"))
-        ]
-        lane_style = LANE_STYLE_MAP[str(attributes.get("laneStyle", "solid"))]
-
-    value = category_id + (lane_direction << 5) + (lane_style << 4)
-    color: NDArrayU8 = np.array([value], dtype=np.uint8)
-    return color
+    pass
 
 
 def frames_to_masks(
@@ -181,74 +113,7 @@ def seg_to_masks(
     closed: bool = True,
 ) -> None:
     """Converting segmentation poly2d to 1-channel masks."""
-    os.makedirs(out_base, exist_ok=True)
-    img_shape = config.imageSize
-
-    out_paths: List[str] = []
-    shapes: List[ImageSize] = []
-    colors_list: List[List[NDArrayU8]] = []
-    poly2ds_list: List[List[List[Poly2D]]] = []
-
-    categories = {
-        "sem_seg": labels,
-        "drivable": drivables,
-        "lane_mark": lane_categories,
-    }[mode]
-    cat_name2id = {
-        cat.name: cat.trainId
-        for cat in categories
-        if cat.trainId != IGNORE_LABEL
-    }
-
-    logger.info("Preparing annotations for Semseg to Bitmasks")
-
-    for image_anns in tqdm(frames):
-        # Mask in .png format
-        image_name = image_anns.name.replace(".jpg", ".png")
-        image_name = os.path.split(image_name)[-1]
-        out_path = os.path.join(out_base, image_name)
-        out_paths.append(out_path)
-
-        if img_shape is None:
-            if image_anns.size is not None:
-                img_shape = image_anns.size
-            else:
-                raise ValueError("Image shape not defined!")
-        shapes.append(img_shape)
-
-        colors: List[NDArrayU8] = []
-        poly2ds: List[List[Poly2D]] = []
-        colors_list.append(colors)
-        poly2ds_list.append(poly2ds)
-
-        if image_anns.labels is None:
-            continue
-
-        for label in image_anns.labels:
-            if label.category not in cat_name2id:
-                continue
-            if label.poly2d is None:
-                continue
-
-            category_id = cat_name2id[label.category]
-            if mode in ["sem_seg", "drivable"]:
-                color: NDArrayU8 = np.array([category_id], dtype=np.uint8)
-            else:
-                color = set_lane_color(label, category_id)
-            colors.append(color)
-            poly2ds.append(label.poly2d)
-
-    logger.info("Start Conversion for Seg to Masks")
-    frames_to_masks(
-        nproc,
-        out_paths,
-        shapes,
-        colors_list,
-        poly2ds_list,
-        with_instances=False,
-        back_color=back_color,
-        closed=closed,
-    )
+    pass
 
 
 ToMasksFunc = Callable[[List[Frame], str, Config, int], None]
